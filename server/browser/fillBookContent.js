@@ -8,7 +8,7 @@
   }
 
   const clickRadio = (name, value) => {
-    const el = document.querySelector(`input[name="${name}"][value="${value}"]`)
+    const el = Array.from(document.querySelectorAll(`input[name="${name}"]`)).find(input => input.value.toLowerCase() === String(value).toLowerCase())
     if (el) {
       el.checked = true
       dispatch(el)
@@ -96,55 +96,37 @@
   const setSelectById = (id, value) => {
     const el = document.getElementById(id)
     if (!el) return false
-    el.value = value
+    const labels = {
+      none: /^none$|^no /i,
+      some_minimal: /some.*(minimal|no editing)/i,
+      some_extensive: /some.*extensive/i,
+      entire_minimal: /entire.*(minimal|no editing)/i,
+      entire_extensive: /entire.*extensive/i,
+      few_minimal: /(one|few).*minimal/i,
+      few_extensive: /(one|few).*extensive/i,
+      many_minimal: /many.*minimal/i,
+      many_extensive: /many.*extensive/i,
+    }
+    const option = Array.from(el.options || []).find(option =>
+      option.value === value || labels[value]?.test(option.textContent || ''))
+    if (!option) return false
+    el.value = option.value
     dispatch(el)
-    return true
+    return el.value === option.value
   }
-
-  if (changes.aiTextAmount !== undefined) {
-    setSelectById('generative-ai-questionnaire-text', changes.aiTextAmount)
-    setHidden(
-      'data[print_book][generative_ai_questionnaire][text][amount_and_editing]',
-      changes.aiTextAmount,
-    )
-    filled.push('aiTextAmount')
-  }
-  if (changes.aiTextTool !== undefined) {
-    setHidden(
-      'data[print_book][generative_ai_questionnaire][text][tools][0]',
-      changes.aiTextTool,
-    )
-    filled.push('aiTextTool')
-  }
-  if (changes.aiImagesAmount !== undefined) {
-    setSelectById('generative-ai-questionnaire-images', changes.aiImagesAmount)
-    setHidden(
-      'data[print_book][generative_ai_questionnaire][images][amount_and_editing]',
-      changes.aiImagesAmount,
-    )
-    filled.push('aiImagesAmount')
-  }
-  if (changes.aiImagesTool !== undefined) {
-    setHidden(
-      'data[print_book][generative_ai_questionnaire][images][tools][0]',
-      changes.aiImagesTool,
-    )
-    filled.push('aiImagesTool')
-  }
-  if (changes.aiTranslationsAmount !== undefined) {
-    setSelectById('generative-ai-questionnaire-translations', changes.aiTranslationsAmount)
-    setHidden(
-      'data[print_book][generative_ai_questionnaire][translations][amount_and_editing]',
-      changes.aiTranslationsAmount,
-    )
-    filled.push('aiTranslationsAmount')
-  }
+  const record = (key, applied) => (applied ? filled : skipped).push(key)
   if (changes.containsAiContent !== undefined) {
-    setHidden(
-      'data[print_book][generative_ai_questionnaire][contains_ai_content]',
-      changes.containsAiContent ? 'YES' : 'NO',
-    )
-    filled.push('containsAiContent')
+    record('containsAiContent', clickRadio('data[print_book][generative_ai_questionnaire][contains_ai_content]', changes.containsAiContent ? 'YES' : 'NO'))
+  }
+  for (const [key, id] of [
+    ['aiTextAmount', 'generative-ai-questionnaire-text'],
+    ['aiImagesAmount', 'generative-ai-questionnaire-images'],
+    ['aiTranslationsAmount', 'generative-ai-questionnaire-translations'],
+  ]) {
+    if (changes[key] !== undefined) record(key, setSelectById(id, changes[key]))
+  }
+  for (const [key, field] of [['aiTextTool','text'],['aiImagesTool','images']]) {
+    if (changes[key]) record(key, setHidden(`data[print_book][generative_ai_questionnaire][${field}][tools][0]`, changes[key]))
   }
 
   if (changes.assignFreeIsbn) {

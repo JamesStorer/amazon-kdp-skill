@@ -66,7 +66,12 @@ export async function clickSaveAndContinue(page: Page): Promise<string> {
 }
 
 export async function clickPublish(page: Page): Promise<string> {
-  return clickPageButton(page, [/^publish$/i, /^save and publish$/i, /^save and continue$/i])
+  // A generic Continue/submit button is not publication, and a click alone is not success.
+  const button = page.getByRole('button', { name: /^(publish|save and publish|publish your (paperback|hardcover|kindle ebook)( book)?)$/i }).first()
+  if (!(await button.isVisible().catch(() => false))) throw new KdpClientError('Could not find the KDP publication button.')
+  await button.click({ timeout: 15000 })
+  await page.getByText(/(successfully submitted|submitted for (review|publication)|your book (is|has been) (in review|submitted))/i).first().waitFor({ state: 'visible', timeout: 60000 })
+  return 'publication submission confirmed'
 }
 
 export function titleIdFromUrl(url: string): string | null {

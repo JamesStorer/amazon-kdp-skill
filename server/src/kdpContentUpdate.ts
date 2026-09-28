@@ -277,8 +277,8 @@ async function completePrintContentOnce(
   }
 
   const settings = { ...spec.printSettings, assignFreeIsbn: true }
-  await fillPrintContentOnPage(page, settings)
-  await ensurePremiumColorSelected(page)
+  const filledSettings = await fillPrintContentOnPage(page, settings)
+  if (filledSettings.skipped.length) throw new KdpClientError(`KDP could not apply these print settings: ${filledSettings.skipped.join(', ')}`)
   await page.waitForTimeout(2000)
   await saveContentPage(page).catch(() => {})
 
@@ -299,7 +299,7 @@ async function completePrintContentOnce(
     else await saveContentPage(page).catch(() => {})
   }
 
-  if (spec.coverPath && needsUpload(status, 'cover')) {
+  if (spec.coverPath) {
     if (!fs.existsSync(spec.coverPath)) {
       throw new KdpClientError(`Cover file not found: ${spec.coverPath}`)
     }
@@ -312,7 +312,7 @@ async function completePrintContentOnce(
     }
   }
 
-  if (spec.interiorPath && needsUpload(status, 'interior')) {
+  if (spec.interiorPath) {
     if (!fs.existsSync(spec.interiorPath)) {
       throw new KdpClientError(`Interior file not found: ${spec.interiorPath}`)
     }

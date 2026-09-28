@@ -212,7 +212,7 @@ export async function updateBookPricingOnPage(
     }
   }
 
-  if (fillResult.skipped.length > 0 && fillResult.filled.length === 0) {
+  if (fillResult.skipped.length > 0) {
     throw new KdpClientError(
       `Could not find editable pricing fields: ${fillResult.skipped.join(', ')}`,
     )

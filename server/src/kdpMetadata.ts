@@ -130,6 +130,7 @@ export async function withKdpPages<T>(
   const viewport = options.viewport ?? { width: 1920, height: 1080 }
 
   const browser = await chromium.launch({
+    channel: process.env.KDP_BROWSER_CHANNEL || 'chrome',
     headless,
     args: [
       '--disable-blink-features=AutomationControlled',

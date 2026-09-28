@@ -1,5 +1,4 @@
 import { chromium } from 'playwright'
-import { KDP_ROYALTIES_PAGE } from './config.js'
 import { ensureSessionDir, sessionFilePath } from './session.js'
 import { checkSession } from './kdpClient.js'
 
@@ -27,27 +26,23 @@ export async function startInteractiveLogin(): Promise<void> {
     try {
       await ensureSessionDir()
       browser = await chromium.launch({
+    channel: process.env.KDP_BROWSER_CHANNEL || 'chrome',
         headless: false,
         args: ['--disable-blink-features=AutomationControlled'],
       })
       const context = await browser.newContext()
       const page = await context.newPage()
-      await page.goto(KDP_ROYALTIES_PAGE, { waitUntil: 'domcontentloaded' })
+      await page.goto('https://kdp.amazon.com/en_US/bookshelf', { waitUntil: 'domcontentloaded' });
+      await page.bringToFront()
 
       const deadline = Date.now() + 10 * 60 * 1000
       while (Date.now() < deadline) {
         const url = page.url()
-        if (
-          url.includes('kdpreports.amazon.com') &&
-          url.includes('/reports/') &&
-          !url.toLowerCase().includes('signin')
-        ) {
-          const html = await page.content()
-          if (html.includes('csrftoken":{"token":"')) {
-            await context.storageState({ path: sessionFilePath() })
-            loginError = null
-            break
-          }
+        if (url.includes('kdp.amazon.com/') && url.includes('/bookshelf') &&
+            await page.getByRole('link', {name: 'Sign out', exact: true}).isVisible().catch(() => false)) {
+          await context.storageState({path: sessionFilePath()})
+          loginError = null
+          break
         }
         await page.waitForTimeout(1500)
       }
@@ -59,7 +54,7 @@ export async function startInteractiveLogin(): Promise<void> {
       }
     } catch (e) {
       loginError =
-        e instanceof Error ? e.message : 'Unexpected error during Amazon login.'
+        'The Amazon browser could not stay open. Check that Google Chrome is installed, then try signing in again.'
     } finally {
       loginInProgress = false
       await browser?.close().catch(() => {})

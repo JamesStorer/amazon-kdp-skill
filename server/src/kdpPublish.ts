@@ -81,8 +81,10 @@ export async function publishBook(
   request: PublishBookRequest,
 ): Promise<PublishBookResult> {
   const format = request.format
-  const dryRun = request.dryRun ?? false
+  const dryRun = request.dryRun ?? true
   const shouldCreate = request.create === true || (!request.titleId && request.create !== false)
+
+  if (shouldCreate && dryRun) throw new KdpClientError('Creating a title is not a dry-run operation.');
 
   if (!shouldCreate && !request.titleId?.trim()) {
     throw new KdpClientError('titleId is required unless create=true.')
@@ -166,6 +168,9 @@ export async function publishBook(
       }
     }
 
+    if (errors.length || steps.some(step => !step.success)) {
+      return {titleId: titleId === 'new' ? null : titleId, format, dryRun, published: false, steps, errors, recoveryLog}
+    }
     if (request.publish && !dryRun) {
       await setReleaseNow(page)
     } else if (!dryRun) {
@@ -228,18 +233,6 @@ export async function publishBook(
         if (resolved) titleId = resolved
         const fromUrl = titleIdFromUrl(page.url())
         if (fromUrl) titleId = fromUrl
-        if (!saveResult.saved && saveResult.filled.length > 0) {
-          const descLen = await page.evaluate(`(() => document.querySelector('input[name="data[print_book][description]"], input[name="data[hardcover_book][description]"], input[name="data[description]"]')?.value?.length || 0)()`) as number
-          if (descLen > 50 || fromUrl) {
-            steps[steps.length - 1] = {
-              step: 'save-details',
-              success: true,
-              detail: { titleId: fromUrl || titleId, descLen },
-              errors: [],
-            }
-            errors.splice(errors.indexOf(saveResult.errors[0] ?? ''), 1)
-          }
-        }
         onDetailsPage = false
       } catch (e) {
         const pageErrors = await collectPageErrors(page)
@@ -268,9 +261,8 @@ export async function publishBook(
       hasMetadata(request.details) || (request.categories?.length ?? 0) > 0
     const detailsSaved =
       (!attemptedDetailsSave && isExistingDraft && !dryRun) ||
-      saveDetailsStep?.success === true ||
-      (isExistingDraft && !dryRun && detailsFilled)
-    if ((content?.interiorPath || content?.coverPath) && detailsSaved && !dryRun) {
+      saveDetailsStep?.success === true
+    if ((content?.interiorPath || content?.coverPath) && detailsSaved && errors.length === 0 && !dryRun) {
       try {
         const result = await completePrintContentOnPage(page, titleId, format, {
           interiorPath: content.interiorPath || '',
@@ -380,7 +372,7 @@ export async function publishBook(
     }
 
     let published = false
-    if (request.publish && !dryRun) {
+    if (request.publish && !dryRun && errors.length === 0 && steps.every(step => step.success)) {
       try {
         const action = await clickPublish(page)
         published = true

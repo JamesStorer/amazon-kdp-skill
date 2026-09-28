@@ -67,6 +67,7 @@ async function withKdpPage<T>(fn: (page: Page) => Promise<T>): Promise<T> {
   }
 
   const browser = await chromium.launch({
+    channel: process.env.KDP_BROWSER_CHANNEL || 'chrome',
     headless: true,
     args: ['--disable-blink-features=AutomationControlled'],
   })
@@ -140,17 +141,15 @@ export async function checkSession(): Promise<{
     return { connected: false }
   }
 
+  const browser = await chromium.launch({channel: process.env.KDP_BROWSER_CHANNEL || 'chrome', headless: true})
   try {
-    return await withKdpPage(async (page) => {
-      const accountCreationDate = await getAccountCreationDate(page)
-      return { connected: true, accountCreationDate }
-    })
-  } catch (e) {
-    if (e instanceof KdpAuthError || e instanceof KdpClientError) {
-      return { connected: false }
-    }
-    throw e
-  }
+    const context = await browser.newContext({storageState: sessionFilePath()})
+    const page = await context.newPage()
+    await page.goto('https://kdp.amazon.com/en_US/bookshelf', {waitUntil: 'domcontentloaded', timeout: 60000})
+    const connected = page.url().includes('/bookshelf') && await page.getByRole('link', {name: 'Sign out', exact: true}).isVisible().catch(() => false)
+    return {connected}
+  } finally { await browser.close() }
+
 }
 
 /** Download Prior Months' Royalties reports and merge into one .xlsx. */

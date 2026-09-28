@@ -12,7 +12,7 @@ export async function sessionExists(): Promise<boolean> {
 }
 
 export async function ensureSessionDir(): Promise<void> {
-  await fs.mkdir(SESSION_DIR, { recursive: true })
+  await fs.mkdir(SESSION_DIR, { recursive: true, mode: 0o700 })
 }
 
 export async function removeSession(): Promise<void> {

@@ -537,7 +537,7 @@ export async function updateBookMetadata(
 
     const fillResult = await fillDetailsPage(page, format, changes)
 
-    if (fillResult.skipped.length > 0 && fillResult.filled.length === 0) {
+    if (fillResult.skipped.length > 0) {
       throw new KdpClientError(
         `Could not find editable fields on KDP: ${fillResult.skipped.join(', ')}`,
       )
@@ -639,7 +639,7 @@ export async function updateBookMetadataOnPage(
 
   const fillResult = await fillDetailsPage(page, format, changes)
 
-  if (fillResult.skipped.length > 0 && fillResult.filled.length === 0) {
+  if (fillResult.skipped.length > 0) {
     throw new KdpClientError(
       `Could not find editable fields: ${fillResult.skipped.join(', ')}`,
     )

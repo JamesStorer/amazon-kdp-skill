@@ -33,6 +33,7 @@ async function withReportsPage<T>(fn: (page: Page) => Promise<T>): Promise<T> {
   }
 
   const browser = await chromium.launch({
+    channel: process.env.KDP_BROWSER_CHANNEL || 'chrome',
     headless: true,
     args: ['--disable-blink-features=AutomationControlled'],
   })
